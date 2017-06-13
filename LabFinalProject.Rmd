@@ -1,0 +1,830 @@
+---
+title: "Analysis and Prediction on Movies"
+author: "Desared Osmanllari"
+date: "10.02.2017"
+output:
+  pdf_document: default
+  html_document: default
+  word_document: default
+subtitle: Final Project - Data Visualization and Analytics
+jon: RWTH Aachen University 
+---
+
+```{r setup, include=FALSE, warning=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# 1. Analysis of the relationship among movie variables
+
+## 1.1 Data
+
+The data comes from the Rotten Tomatoes and IMDB web sites and consists of audience and critic review scores for 651 movies (random sample of data) released from 1970 till 2016. In addition to review scores, the data contains several other variables regarding each movie such as genre, running time, MPAA rating, production studio, Oscar nominations, release year, actors participating and more. In total, there is an amount of 32 variables stored in this dataset. 
+
+The raw data is a random sample taken from the full data set of all movies released prior to 2016. It is assumed for the sake of exploratory analysis that the conclusions drawn are generalizable to the population of all movies and that there is no bias introduced by the sampling method. But this is supposed just for the exploratory analysis phase, which will help us to create a general idea about the dataset. After drawing the conclusions from exploratory analysis, I will split the data into two subset: training and testing set. 
+
+I will start this project by introducing the data, showing their correlations and deciding wich of the variables is the most appropriate one to be furtherly studied as a dependent variable. Later, I will make predictions using various regression methods and show how some interesting components affect the movie rating. 
+
+Exploratory analysis and visualizations are located in the Appendix to this document.
+
+## 1.2 Setup 
+### Load packages and data
+
+```{r , warning=FALSE, message=FALSE}
+# set working directory
+setwd("C:/RWTH/ws16/Data Visualisation and Analytics/Final Project")
+#load all necessary packages
+require(pacman)
+p_load( ggplot2, dplyr,statsr,grid,gridExtra, knitr, corrplot, 
+        corrr, ggthemes, plotly ,data.table, formattable , DT, glmnet,
+        caret, leaps,e1071, GGally, car) #load the dataset
+load("movies.Rdata")
+# show the features of the dataset
+dim(movies)
+str(movies)
+```
+
+## Research Question
+
+The research question addressed in this analysis is this: 
+
+ * Is there any correlations between movie general features that make people like or dislike a movie?
+
+More specifically, do variables such as movie genre, MPAA rating, run length, etc. work as reasonable predictors of a movie's popularity? Can we predict the rating of a movie based on these components? 
+
+Predicting which movies are likely to be popular ahead of their release would be valuable information when deciding which movies to watch. Moreover, companies such as Netflix do such an analysis to predict wich movies are mostly preferable in specific seasons. 
+
+## 1.3 General Exploratory Analysis
+
+### What are the total number of movies reviewed by year?
+
+From the first graph (Appendix - Plot 1), I show that the total number of movies produced in the last 40 year keeps increasing. The trend is visualized with the blue trace. It does not mean that the number of movies per year is decreasing in the last decade. The sample might show unacurrate correlations, but in overall we can see a positive correlation among years and movies produced. This is somehow predictable, since the technology and budgets for producing new movies keeps increasing every year. This makes the last decade the most successful one in the world of cinematography. 
+
+### Data Characteristics
+
+As noted before, there are 651 movies represented in the raw data. The charts (Appendix - Plot 2) show a breakdown of the type of movies included in the sample. I have visualized the distribution of movies in 4 main variables. From this chart, I can better understand the dataset. I can conclude that most of the movies belong to 'Feature Film' type and 'Drama' genre. Also, most of the movies have a MPAA rating of 'R'. Movie runtime is normally distributed and we see that most of the movies have an average runtime of 100 minutes.    
+
+### Correlation of all numeric variables. 
+
+Next I study the correlation of all numeric variables (Appendix - Plot 3). First I clean the dataset from null values and estimate the correlated variables. This feature is important to decide the significance that numeric variables have to each other. From the correlation plot, I can say that the most correlated variables are audience_score and imdb_rating. These two variables are related with critics_score also. Moreover, dvd_release_year is correlated to theater_release_year, which makes sense since the dvd is usually released some months later than the movie is showed in cinemas. 
+
+## 1.4 Modeling
+
+### Model Development
+
+The target response variable for the prediction model is a movie rating score, but with three to choose from, which one should be used? 
+
+(1) Average of reviews by movie critics .
+
+(2) Average of reviews from the public (a.k.a., audience). 
+
+(3) Average of reviews on the IMDB web site (no distinction made between critics and audience reviews).
+
+For this reason, I prepare a correlation between the different rating scores. The  plots in Appendix - Plot 4 show that to be the case. 
+
+Given these correlations, only one of the ratings will be used as the response variable. Histograms of the data distribution for the three ratings are given in Appendix - Plot 5.
+
+Contrary to the two Rotten Tomatoe scores, the IMDB scores show a nice, mostly normal distribution centered around a mean of 6.37 with somewhat of a left-side skew. Given its distribution and the fact that it has the highest pairwise correlation with the other scores, the IMDB rating (imdb_rating) was the chosen response variable.
+
+## 1.5 Further Exploratory Analysis considering IMDB rating
+
+#### (a) Analyse correlation of IMDB rating with other variables 
+
+In the graph displayed in Appendix - Plot 6, I have removed removed the critics and audience score, since it is proved they have the highest correlation value with the IMDB rating. My purpose is to see which variables affect mostly the IMDB. As visualized, movie runtime and the number of IMDB votes have the highest values among the other numeric values. Later I will make a more detailed analysis and prediction based on these indepentend variables. 
+
+#### (b) Number of users voting versus IMDB score 
+
+In Appendix - Plot 7, there is a positive curvilinear relationship among imdb_num_votes and imdb_rating. This relation is somehow predictable since as many users vote for a specific movie, the higher is the possibility for this movie to have a good rating. With red line, there is visualized the Fitting Linear Model. 
+
+#### (c) Movie runtime versus IMDB score  
+
+Even though, the correlation among these two variables is the second highest, it is hard to say from the graph that runtime affects the imdb_rating. This is visualized in Appendix - Plot 8. Actually, runtime within a specific interval really affects the imdb_rating. So we have to consider an interval while studying this correlation, since it is hard to believe that a 5-hour longtime movie has a higher rating than a normal 90 minutes movie. 
+
+#### (d) Content rating versus IMDB rating
+
+From the graph in Appendix - Plot 9, we can assume that movies belonging to MPAA rating "G", are tended to have a higher IMDB compared to the other ratings. However, the sample lacks some information. So ,it is hard to say whether mpaa rating 'NC-17' has an effect on imdb rating. 
+
+#### (e) IMDB rating distribution over years
+
+Not concrete results can be implied by the graph in Appendix - Plot 10. The distribution of movies through the years changes as seen previously, but it does not affect the imdb rating. Yet we can not be sure only from the visualization without checking their regression relationship. 
+
+#### (f) Which director has the highest average IMBD rating?
+
+From Appendix - Plot 11, I can say that directors might affect the quality of a movie considerably. Consequently, they might be a decisive factor on imdb_rating. As seen in the barplot, there is a wide distribution of average imdb_rating per director. 
+
+## 1.6 Data Manipulation
+
+After doing some explonatory analysis and better understanding the data, I try doing some predictions. However, before making the first viewings and processings over the data, we split our dataset in training and test data. Most of the algorithms that learn with data with the objective to predict new incomes try to minimize the error they make with the first step (learning). Because of this, if we evaluate our data over the error that the algorithm (regression in this case) makes with the training data, we would be making an over optimistic assumption. Then, we make a validation using the testing set to see how realistic our prediction is and check whether our model prediction responds similarly for both training and testing set. 
+
+```{r}
+set.seed(123)
+anyNA <- function(row){ any(is.na(row))}      # function to return which row has at least a NA
+rowsWithNA <- apply(movies, 1, anyNA)         # apply the function to each row
+sum(rowsWithNA)
+movies <- movies[!rowsWithNA,]
+
+responseCols <- c(13)                         #imdb rating is dependent variable
+ # remove title, critics_rating,critics_score,audience_rating,audience_score
+# remove the name of directors and actors and the url of imdb and rotten tomatos
+noInterestVars <- c(1,15,16,17,18,25:32)      
+inTrain <- createDataPartition(y=movies$imdb_rating,p=0.6, list=FALSE)
+training <- movies[inTrain,-noInterestVars]         # create training set
+testing <- movies[-inTrain,-noInterestVars]         # create testing set
+dim(training); dim(testing)
+```
+
+# 2. Prediction on Movies
+
+## 2.1  Model 1 - Regression on multiple covariates 
+
+The purpose of multiple regression is to predict a single variable from one or more independent variables. Multiple regression with many predictor variables is an extension of linear regression with two predictor variables. A linear transformation of the X variables is done so that the sum of squared deviations of the observed and predicted Y is a minimum.
+
+### Basic idea
+
+(1) Fit a regression model
+(2) Penalize (or shrink) large coefficients
+
+__Pros:__
+
+* Can help with the bias/variance tradeoff
+* Can help with model selection
+
+__Cons:__
+
+* May be computationally demanding on large data sets
+* Does not perform as well as random forests and boosting
+
+### Model selection approach: split samples
+
+Approach:
+
+  (1) Divide data into training/test/validation
+  (2) Treat validation as test data, train all competing models on the train data and pick the best one on validation.   
+  (3) To appropriately assess performance on new data apply to test set
+  (4) You may re-split and reperform steps 1-3
+
+Two common problems:
+
+  (a) Limited data
+  (b) Computational complexity
+
+### A motivating example
+
+$$Y = \beta_0 + \beta_1 X_1 + \beta_2 X_2 + \epsilon$$
+
+where $X_1$ and $X_2$ are nearly perfectly correlated (co-linear). You can approximate this model by:
+
+$$Y = \beta_0 + (\beta_1 + \beta_2)X_1 + \epsilon$$
+
+The result is:
+
+* You will get a good estimate of $Y$
+* The estimate (of $Y$) will be biased 
+* We may reduce variance in the estimate
+
+### Adjusting Explanatory Variables
+
+### Criteria for model selection:
+
+  (1) The data are normal distributed
+
+  (2) R^2 always increase as parameters are added
+
+  (3) Adjusted R^2: generally favors models with too many variables
+  
+  (4) F-test: statistical test for normal, nested models.
+
+### More general criteria: 
+
+  (1) Akaike's information criterion (AIC): $$nlog(\hat\sigma^2)+2p$$
+     Penalizes the number of parameters or coeffiecients in the model. The Akaike Information Criterion (AIC) is a measure of the relative quality of statistical models for a given set of data. Given a collection of models for the data, AIC estimates the quality of each model, relative to each of the other models. Hence, AIC provides a means for model selection.
+
+  (2) Bayesian information criterion (BIC): $$nlog(\hat\sigma^2)+log(n)p$$
+
+  (3) Cross Validation
+
+### Models which keep all the variables but shrinking them toward zero: 
+
+(1) Lasso 
+
+$\sum_{i=1}^N \left(y_i - \beta_0 + \sum_{j=1}^p x_{ij}\beta_j \right)^2$ subject to $\sum_{j=1}^p |\beta_j| \leq s$ 
+
+also has a lagrangian form 
+
+$$ \sum_{i=1}^N \left(y_i - \beta_0 + \sum_{j=1}^p x_{ij}\beta_j \right)^2 + \lambda \sum_{j=1}^p |\beta_j|$$
+
+(2) Ridge Regression 
+
+$$ \sum_{i=1}^N \left(y_i - \beta_0 + \sum_{j=1}^p x_{ij}\beta_j \right)^2 + \lambda \sum_{j=1}^p \beta_j^2$$
+
+equivalent to solving
+
+$\sum_{i=1}^N \left(y_i - \beta_0 + \sum_{j=1}^p x_{ij}\beta_j \right)^2$ subject to $\sum_{j=1}^p \beta_j^2 \leq s$ where $s$ is inversely proportional to $\lambda$ 
+
+What does $\lambda$ shrink the model?
+
+  (a) $\lambda$ controls the size of the coefficients
+  (b) $\lambda$ controls the amount of regularization
+  (c) As $\lambda \rightarrow 0$ we obtain the least square solution
+  (d) As $\lambda \rightarrow \infty$ we have $\hat{\beta}_{\lambda=\infty}^{ridge} = 0$
+  
+### Implementing Akaike's Information criterion (AIC)
+
+I decided to use AIC selection model. Given a set of candidate models for the data, the preferred model is the one with the minimum AIC value. AIC rewards goodness of fit (as assessed by the likelihood function), but it also includes a penalty that is an increasing function of the number of estimated parameters. The penalty discourages overfitting, because increasing the number of parameters in the model almost always improves the calculated goodness of the fit.
+
+I perform a stepwise variable selection procedure. I used backward selection model which basically starts from a full model and removes less significant explanatory variables. 
+
+This model removes one variable at a time and calculates the value of AIC in each step. I will try to get the smallest value of AIC. After reaching the best option, I stop removing variables. 
+
+```{r}
+# make a linear model regression on multiple covariance: imdb_rating as dependent variable 
+# and all the others as independent
+set.seed(123)
+modFitAll <- lm(imdb_rating ~ .,data = training)
+summary(modFitAll)
+
+```
+
+This model has a R-squared value of 0.7304, meaning it explains 73% of the variance. 
+
+Implementing AIC, the most significant variables appear to be: title_type, genre, runtime, mpaa_rating, thtr_rel_year, dvd_rel_month, imdb_num_votes, best_pic_nom, best_pic_win and best_dir_win as shown below. 
+
+```{r}
+set.seed(123)
+# use AIC selection model, implementing backward selection
+step(lm(imdb_rating~ . , data = training), direction = "backward")
+```
+
+Next, I create a final model where I linearly regress all the variables displayed above against imdb_rating. 
+
+```{r}
+set.seed(123)
+### final model with what we got implementing AIC
+final.model <- lm(formula = imdb_rating ~ title_type + genre + runtime + mpaa_rating + 
+    thtr_rel_year + dvd_rel_month + imdb_num_votes + best_pic_nom + 
+    best_pic_win + best_dir_win, data = training)
+summary(final.model)
+```
+
+The R-squared value is decreased to 0.45, since we have remove some variables. Even though, the model suggests those eleminated variables were not significant for our prediction, the R-squared value is tended to decrease. Why?
+
+This is normal, since R-square is closely dependent on the number of variables, even though they might not be significant. 
+
+Below I tend to choose the best model, using the variables selected by AIC model selection. To compare models, I use ANOVA. 
+
+### ANOVA
+
+ANOVA is a statistical model which helps us to compare the means of two or more groups. I use ANOVA to analyse the variance in different samples. This is helpful to see how the model changes while I eliminate the least significant variables. During analysing variance, we calculate F statistics, which is similar to other statistics test such as "z" or "t".
+
+```{r}
+set.seed(123)
+#comparing models using Anova 
+fit1 <- lm(imdb_rating ~ imdb_num_votes, data = training)
+fit2 <- update(modFitAll, imdb_rating ~ genre + imdb_num_votes)
+fit3 <- update(modFitAll, imdb_rating ~ genre + imdb_num_votes + thtr_rel_year)
+fit4 <- update(modFitAll, imdb_rating ~ genre + imdb_num_votes + thtr_rel_year + best_pic_nom)
+fit5 <- update(modFitAll, imdb_rating ~ genre + imdb_num_votes + thtr_rel_year + best_pic_nom + 
+                   best_pic_win + title_type)
+fit6 <- update(modFitAll, imdb_rating ~ genre + imdb_num_votes + thtr_rel_year + best_pic_nom + 
+                   best_pic_win + title_type + runtime + best_dir_win )
+fit7 <- update(modFitAll, imdb_rating ~ genre + imdb_num_votes + thtr_rel_year + best_pic_nom + 
+                   best_pic_win + title_type  + runtime + best_dir_win + dvd_rel_month + mpaa_rating)
+anova(fit1, fit2, fit3, fit4, fit5,fit6, fit7)
+```
+
+
+Using ANOVA, I can conclude that all models have a low P-Value. However, I have to choose one of them by checking the normality and comparing the main coefficients. 
+
+### Checking Normality
+
+Analysis of variance is sensitive to its assumption that model residuals are approximately normal. If they are not, we could get a small p-value for that reason. It is thus worth testing residuals for normality. The Shapiro-Wilk test is quick and easy in R. Normality is its null hypothesis.
+
+```{r}
+shapiro.test(fit1$residuals)
+shapiro.test(fit2$residuals)
+shapiro.test(fit3$residuals)
+shapiro.test(fit4$residuals)
+shapiro.test(fit5$residuals)
+shapiro.test(fit6$residuals)
+shapiro.test(fit7$residuals)
+```
+
+
+For all the models, we obtain small p-value (<0.05), so we fail to reject normality. So we can be confident for P-values from F-test results shown in ANOVA test. 
+
+## Comparing the main coefficients
+
+### R-square
+
+R-square values: The last model (fit7) has the highest R-square value since it has more variables than the others. Even though, we keep studying variance, since we can not be confident only by using R-square.  
+
+### Variance Inflation Factor VIF
+
+A variance inflation factor (VIF) is a ratio of estimated variances, the variance due to including the ith regressor, divided by that due to including a corresponding ideal regressor which is uncorrelated with the others.
+If a regressor is strongly correlated with others, hence will increase their VIF's, why shouldn't we just exclude it?
+Excluding it might bias coefficient estimates of regressors with which it is correlated.
+
+```{r}
+vif(mod = fit2)
+vif(mod = fit3)
+vif(mod = fit4)
+vif(mod = fit5)
+vif(mod = fit6)
+vif(mod = fit7)
+```
+
+
+As expected, as we add more variables, the variance will increase. However, I tend to choose the last model, since it has the highest R-squared value and also the variance does not change drastically compared to the other models. Model 7 (the one suggested by AIC) is the most significant one.
+ 
+Moreover, I double check the residuals and can see they are all normally distributed and homoskedastic. Check Appendix - Plot 12 to see all the relations Residuals vs Fitted, Normal QQ, Scale-Location and Residuals vs Leverage. 
+
+### Testing the model
+
+
+Since I have a small sample, I perform cross Validation: 
+
+ * Fit the model again on the testing data to obtain the final model. 
+
+```{r , warning=FALSE, message=FALSE}
+set.seed(123)
+mod.testing <-step(lm(imdb_rating~ . , data = testing), direction = "backward")
+summary(mod.testing)
+```
+
+
+The variables with the largest coefficients in the training set, are also displayed through cross validation to be the most significant ones. We have lost some explonatory variables from the training set. So, even though it seems good, it does not solve all the problems. In Appendix - Plot 13, there is a plot showing how the testing data stand when compared to final model. The graph is linearly distributed which shows an acceptable model. 
+
+Through AIC, the overfitting is prevented, it is obvious that the value of R square is tended to decrease constantly as we remove variables. Even though our model might be acceptable, there are many trade offs which push me to explore other ways of removing less significant variables. Even though the model studied so far is not the optimum, it is a convinient and significant model. 
+
+
+
+### Results of Model 1 
+
+
+Below, I display 5 movies and their predicted values. Also, I show the 95% confidence interval values and moreover give the real value of imdb rating. As we can see, the real values tend to be inside the prediction interval and somehow close to predicted value.
+
+
+```{r , warning=FALSE, message=FALSE}
+# Use the final model to generate rating predictions four movies.
+set.seed(123)
+dataTheDish <- data.frame(title_type ="Feature Film" ,genre="Drama", runtime=101,
+                          mpaa_rating="PG-13", dvd_rel_month= 8, best_pic_win="no", 
+                          best_pic_nom="no", thtr_rel_year=2001, 
+                          imdb_num_votes=12285, best_dir_win="no")
+predTheDish <- predict(final.model, dataTheDish, interval="predict" )
+
+dataFillyBrown <- data.frame(title_type ="Feature Film" ,genre="Drama", runtime=80,
+                             mpaa_rating="R", dvd_rel_month= 7, best_pic_win="no",
+                             best_pic_nom="no", thtr_rel_year=2001,  imdb_num_votes=899,
+                             best_dir_win="no")
+predFillyBrown <- predict(final.model, dataFillyBrown, interval="predict")
+
+dataAroundTheWorld <- data.frame(title_type ="Feature Film" ,genre="Action & Adventure",
+                                 runtime=120,mpaa_rating="PG",best_pic_win="no",
+                                 best_pic_nom="no",thtr_rel_year=2004, dvd_rel_month=11,
+                                 imdb_num_votes=66054,best_dir_win="no")
+predAroundTheWorld <- predict(final.model, dataAroundTheWorld, interval="predict")
+
+dataHungerGames <- data.frame(title_type ="Feature Film",genre="Drama",runtime=142,
+                              mpaa_rating="PG-13",dvd_rel_month= 8, best_pic_win="no",
+                              best_pic_nom="no", thtr_rel_year=2012,  imdb_num_votes=675907,
+                              best_dir_win="no")
+predHungerGames <- predict(final.model, dataHungerGames, interval="predict")
+
+dataTheRaven <- data.frame(title_type ="Feature Film",genre="Mystery & Suspense",runtime=110,
+                              mpaa_rating="R",dvd_rel_month= 10, best_pic_win="no",
+                              best_pic_nom="no", thtr_rel_year=2012,  imdb_num_votes=71112,
+                              best_dir_win="no")
+predTheRaven <- predict(final.model, dataTheRaven, interval="predict")
+# Show prediction results.
+df <- data.frame(t=c("The Dish","Filly Brown","Around the World in 80 Days", "The Hunger Games", "The Raven"),
+                  p=c(sprintf("%2.1f", predTheDish[1]), 
+                     sprintf("%2.1f", predFillyBrown[1]),
+                     sprintf("%2.1f", predAroundTheWorld[1]),
+                     sprintf("%2.1f", predHungerGames[1]),
+                     sprintf("%2.1f", predTheRaven[1])),
+                 i=c(sprintf("%2.1f - %2.1f", predTheDish[2],
+                             ifelse(predTheDish[3]>10, 10 ,predTheDish[3] )), 
+                     sprintf("%2.1f - %2.1f", predFillyBrown[2], 
+                             ifelse(predFillyBrown[3]>10, 10 ,predFillyBrown[3] )),
+                     sprintf("%2.1f - %2.1f", predAroundTheWorld[2], 
+                             ifelse(predAroundTheWorld[3]>10, 10 ,predAroundTheWorld[3] )),
+                     sprintf("%2.1f - %2.1f", predHungerGames[2], 
+                             ifelse(predHungerGames[3]>10, 10 ,predHungerGames[3] )),
+                     sprintf("%2.1f - %2.1f", predTheRaven[2], 
+                             ifelse(predTheRaven[3]>10, 10 ,predTheRaven[3] ))),
+                 r=c("7.3", "5.5", "5.8", "7.3","6.4"))
+kable(df, col.names=c("Movie Title", "Predicted Rating", "95% Prediction Interval", "Actual Rating"))
+
+```
+
+All the following results can be interpreted as the correlation of each paramenter with the imdb_rating response variable, when all the other attributes remain constant. Most of the attributes were positive correlated with the response variable. All the results below come after studying the final model studied so far using AIC model selection. 
+
+(1) The base factor predictor for the genre attribute was Drama and House & International. These genres followed by Musical & Performing Arts tend to have the biggest positive effect on final IMDB rating. Also, documentaries can be significant also according to this model.
+
+(2) The runtime attribute (in hours) got a positive correlation with the imdb_rating.However, we have to be careful with this variable, in the sense that we can not extra extrapolate the fit. Consequently, we can not predict the average imdb_ratings for a 13 hours movie, expecting an incredible high score.
+
+(3) Movies realesed in theaters in a specific time are significant to the model. However, we can not say which years are more successful than the others yet. 
+
+(4) One theory that might make sense in a video popularity is that, the more upvotes a movie receives, the more popular it becomes, more people will want to watch it because it is popular and more upvotes it will receive. This makes the variable imdb_num_votes highly affective in the model. 
+
+(5) Another important factor is the title type. If a movie belongs to the type Documentary, it is tended to have a higher imdb rating. Then comes Feature Film followed by TV Movie. 
+
+(6) Best picture nominees and best director nominees seem to have an effect on the imdb rating also. If a movie is nominated to win a prize, this makes it more enjoyable. 
+
+
+# 2.2 Model 2 - Feature Modelling and Engineering
+
+Feature engineering is a non standard field of data modelling / machine learning that tries to transform raw data into features that better represent the underlying problem to the predictive models, resulting in improved model accuracy on unseen data. 
+
+### Near Zero Variance and Correlated Columns Verification
+
+NZV variables are columns that have little variation among its values, i.e., there is one predominant value, making the values almost constant between the data examples, providing little discriminative power. There are discussions if we should remove the nzv predictors, considering that we are throwing out information but, as we are trying to get the most informative model to our data, we would stick with this approach to remove them. 
+
+As for multicollinearity, we will analyze among the predictors if we can find a big correlation between then. Correlated predictors are known to destabilize the model parameters, increase the prediction standard error and worse the fit to new data. Let see how our data is organized. We will use the Caret package to extract the nzv variables and the cor command to extract the correlation matrix:
+
+```{r , warning=FALSE, message=FALSE}
+set.seed(123)
+nzv <- nearZeroVar(training, saveMetrics = TRUE)
+nzvIndices <- which(nzv$nzv == TRUE)
+nzv[nzvIndices, ]
+```
+
+As we can see {best_pic_nom, best_pic_win, top200_box} were selected as no discriminative variables. So, the first step is to remove these three variables from further analysis. 
+
+Inspecting our correlation matrix, we see that the most correlated columns are between theater_release_year and dvd_rel_year, which makes sense. Anyway, from the correlation model, I choose to keep studying both of them since they correlation is not as strong to be significant. Recheck Appendix - Plot 3. Note that I have removed the critics_score and audience_score from this model, since they are not a subject of my study anymore. 
+
+### Feature Modeling
+
+In this section, I present the insights that I have made to get to the final model. The movies training dataset was repeatedly sampled and transformed in order to get a high adjusted R^2 score. The list below shows the feature engineering process taken to get to the final model and their respective R^2 scores. I will explain each item and why I have included them in the final model.
+
+* But first, I have to remove the variables analysed above from the training and testing set. After this process, I will have 16 variables to analyse. Also, from the correlation it seems like the theater release day and dvd release day are not so important in the final model. Removing these variables will reduce the number to 14. 
+
+```{r , warning=FALSE, message=FALSE}
+set.seed(123)
+removeVar <- c(8,11, 14,15,19)             # remove thtr_rel_day, dvd_rel_day, best_pic_nom, 
+                                             # best_pic_win, top200_box
+trainingMod <- training[,-removeVar]         # create training set
+testingMod <- testing[,-removeVar]           # create testing set
+dim(trainingMod); dim(testingMod)
+```
+
+
+   (1) Transformation of imdb_ratings < 5 to 5: As we are trying to predict the best ratings, I removed the low score ratings and merged then into the 5 score. 
+
+   (2) Theatre release year transformation: Another feature transformation to try to reduce the variance of the model. Firstly, grouping the years in bins created just 5 years categories, instead of more than 40 years of variations. Secondly, the idea is that maybe the impact of year in the final imdb ratings were not granulated as individual years, but in a range of years.
+
+   (3) Inclusion of the biggest studios: Movies coming from the biggests (and more famous) studios could bring some more clues about its ratings. So I selected the most frequent studios in the training dataset and transformed the other studios to a new category, 'other'. The new added variable was a factor with 6 levels, the 5 biggest studios and the 'other' category.
+  
+```{r , warning=FALSE, message=FALSE}
+set.seed(123)
+moviesVarEngineer <- function(dataFrame, mode){
+
+  # step 1 = Transformation of imdb_ratings < 5 to 5
+  dataFrame$imdb_rating[dataFrame$imdb_rating < 5] <- 5
+  
+  # step 2 = Theatre release year transformation
+  dataFrame$thtr_rel_year_BIN <- cut(dataFrame$thtr_rel_year, 
+                                     breaks = c(1969, 1980, 1990,2000,2010, 2014))
+  dataFrame$thtr_rel_year <- NULL
+
+  # step 3 = selected the  biggest studios and transformed the others to 'other'
+  studios <- c('Paramount Pictures','Warner Bros. Pictures','Sony Pictures Home Entertainment',
+               'Universal Pictures','Warner Home Video')
+  if(mode == 'training'){
+    dataFrame$studio <- trainingMod$studio  
+  }else{
+    dataFrame$studio <- testingMod$studio
+  }
+  dataFrame$studio[!dataFrame$studio %in% studios] <- NA
+  dataFrame$studio <- factor(dataFrame$studio, levels = c(studios,'Other'))
+  dataFrame$studio[is.na(dataFrame$studio)] <- 'Other'
+  
+  invisible(dataFrame)
+}
+```
+
+Implement the algorithm above into our training data set. 
+
+```{r , warning=FALSE, message=FALSE}
+set.seed(123)
+TrainingPredictors <- moviesVarEngineer(trainingMod,'training')
+TestingPredictors <- moviesVarEngineer(testingMod,'testing')
+
+finalModEng <- lm(imdb_rating ~ . , data = TrainingPredictors)
+summary(finalModEng)
+
+```
+
+From this model, the R-square has a value of 0.5454, meaning it explains 54% of the variance. This is improved compared to the previous model, when we eleminated variables using AIC variable selection model. However, we can not say that we have reached the optimum yet. There will always be trade offs among these models. 
+
+The model diagnostic plots in Appendix - Plot 14 show that the model is acceptable. There is good scatter of the residuals around zero for the range of fitted values (the mean value of the residuals is, in fact, zero). The residuals distribution histogram show a pretty normal distribution.
+
+Overall, the evidence points toward the final model being valid.
+
+### Testing and Evaluation
+
+Declaring the model efficiency by the estimated training error could be a little unrealistic because the model tries to minimize the training set error. 
+A good way to evaluate this regression model is the Root Mean Square Error - RMSE, which makes an estimate of the standard error made by the model in unseen data. 
+
+```{r , warning=FALSE, message=FALSE}
+set.seed(123)
+testingPredictions  <- predict(finalModEng, TestingPredictors)
+trainingPredictions  <- predict(finalModEng, TrainingPredictors)
+
+postResample(pred=testingPredictions ,obs=TestingPredictors$imdb_rating)[1]
+postResample(pred=trainingPredictions ,obs=TrainingPredictors$imdb_rating)[1]
+
+```
+
+The feature engineering process was the responsible in greatly improving the adjusted R^2 and the model seemed to generalize well in new unseen data, as we obtained a relatively similar RMSE for training and testing set. This makes our model acceptable. 
+
+Moreover in Appendix - Plot 15, there is another plot showing how the testing data stand when compared to final model engineering. The graph is linearly distributed which shows an acceptable model. 
+
+### Results on Model 2 
+
+Below, I display the same 5 movies showed above and their predicted values. Also, I show the 95% confidence interval values and moreover give the real value of imdb rating. 
+
+```{r , warning=FALSE, message=FALSE}
+
+set.seed(123)
+# Use the final model to generate rating predictions four movies.
+dataTheDish <- data.frame(title_type ="Feature Film" ,genre="Drama", runtime=101,
+                          mpaa_rating="PG-13",studio= "Warner Bros. Pictures",
+                          thtr_rel_month=3, dvd_rel_month= 8, best_actor_win="no",
+                          best_actress_win="no", thtr_rel_year_BIN='(2000,2010]',
+                          imdb_num_votes=12285,
+                          best_dir_win="no",dvd_rel_year=2013)
+predTheDish <- predict(finalModEng, dataTheDish, interval="predict")
+
+dataFillyBrown <- data.frame(title_type ="Feature Film" ,genre="Drama", runtime=80,
+                             mpaa_rating="R",studio= "Other", thtr_rel_month=4,
+                             dvd_rel_month= 7, best_actor_win="no", best_actress_win="no",
+                             thtr_rel_year_BIN='(2010,2014]',  
+                             imdb_num_votes=899,best_dir_win="no",
+                             dvd_rel_year=2001)
+predFillyBrown <- predict(finalModEng, dataFillyBrown, interval="predict")
+
+dataAroundTheWorld <- data.frame(title_type ="Feature Film" ,genre="Action & Adventure",
+                                 runtime=120, mpaa_rating="PG",studio= "Other", 
+                                 thtr_rel_month=6, dvd_rel_month= 11,
+                                 best_actor_win="no", best_actress_win="no",
+                                 thtr_rel_year_BIN='(2000,2010]', 
+                                 imdb_num_votes=66054,best_dir_win="no",
+                                 dvd_rel_year=2004)
+predAroundTheWorld <- predict(finalModEng, dataAroundTheWorld, interval="predict")
+
+dataHungerGames <- data.frame(title_type ="Feature Film" ,genre="Drama", runtime=142,
+                              mpaa_rating="PG-13",studio= "Other",
+                              thtr_rel_month=3,
+                              dvd_rel_month= 8, best_actor_win="no",
+                              best_actress_win="yes", 
+                              thtr_rel_year_BIN='(2010,2014]',  imdb_num_votes=675907,
+                              best_dir_win="no", dvd_rel_year=2012)
+predHungerGames <- predict(finalModEng, dataHungerGames, interval="predict")
+
+dataTheRaven <- data.frame(title_type ="Feature Film" ,genre="Mystery & Suspense", runtime=110,
+                              mpaa_rating="R",studio= "Other",
+                              thtr_rel_month=4,
+                              dvd_rel_month= 10, best_actor_win="no",
+                              best_actress_win="no", 
+                              thtr_rel_year_BIN='(2010,2014]',  imdb_num_votes=71112,
+                              best_dir_win="no", dvd_rel_year=2012)
+predTheRaven <- predict(finalModEng, dataTheRaven, interval="predict")
+
+# Show prediction results.
+df <- data.frame(t=c("The Dish","Filly Brown","Around the World in 80 Days", "The Hunger Games", "The Raven"),
+                  p=c(sprintf("%2.1f", predTheDish[1]), 
+                     sprintf("%2.1f", predFillyBrown[1]),
+                     sprintf("%2.1f", predAroundTheWorld[1]),
+                     sprintf("%2.1f", predHungerGames[1]),
+                     sprintf("%2.1f", predTheRaven[1])),
+                 i=c(sprintf("%2.1f - %2.1f", predTheDish[2], predTheDish[3]), 
+                     sprintf("%2.1f - %2.1f", predFillyBrown[2], predFillyBrown[3]),
+                     sprintf("%2.1f - %2.1f", predAroundTheWorld[2], predAroundTheWorld[3]),
+                     sprintf("%2.1f - %2.1f", predHungerGames[2], predHungerGames[3]),
+                     sprintf("%2.1f - %2.1f", predTheRaven[2], predTheRaven[3])),
+                 r=c("7.3", "5.5", "5.8", "7.3", "6.4"))
+kable(df, col.names=c("Movie Title", "Predicted Rating", "95% Prediction Interval", "Actual Rating"))
+
+```
+
+All the following results can be interpreted as the correlation of each paramenter with the imdb_rating response variable, when all the other attributes remain constant. Most of the attributes were positive correlated with the response variable. All the results below come after studying the Model Engineering. 
+
+(1) The base factor predictor for the genre attribute was Drama and House & International. These genres followed by Musical & Performing Arts tend to have the biggest positive effect on final IMDB rating. Both models studied, output the same results on genres and their effectivness on IMDB rating. 
+
+(2) The runtime attribute (in hours) got a positive correlation with the imdb_rating.However, we have to be careful with this variable, in the sense that we can not extra extrapolate the fit. Consequently, we can not predict the average imdb_ratings for a 13 hours movie, expecting an incredible high score. The same result is displayed in the previous model also. But in this case, runtime has a more significant coefficient. 
+
+(3) Movies realesed in the last decade of the last century tend to be more successful than the others. If the theater release year is between 1990 and 2000, this makes a movie enjoyable. In the previous model, we can not make such a detailed analysis in the theater released year.
+
+(4) One theory that might make sense in a video popularity is that, the more upvotes a movie receives, the more popular it becomes, more people will want to watch it because it is popular and more upvotes it will receive. This makes the variable imdb_num_votes highly affective in the model. This results correlate to the previous model also. 
+
+(5) Another important factor is the title type. If a movie belongs to the type Feature Film, it is tended to have a higher imdb rating. This result differs from the previous model, where documentary type was the most influential variable. 
+
+(6) Studio of production is very important in this model. Movies produced in 'Bros. Pictures' and 'Universal Pictures' seem to have a effect on the final IMDB rating. In the previous model, Studio was eleminated from studying as insignificant. 
+
+# 3. Conclusion
+
+On this project, I tried to make a deep analysis and prediction on movies. I started by implementing some extended exploratory data analysis, in order to understand the dataset better. Mostly, I studied the correlation among variables and chose imdb_rating to be my dependent variable.
+
+Next, I splitted the dataset into a training and testing set, so I could have the chance to test my prediction models. After this, I tried to build two prediction models. The first one was using the standard linear model function and the stepwise automated model selection algorithm, more specifically the AIC stepwise model selection. After this process, I constructed some accuracy and normality testing. In overall, the process was acceptable, and the variables selected were significant to the model.
+
+The second model was built based on the feature engineering process. The feature engineering process was responsible in improving the adjusted R2 and the model seemed to generalize well in new unseen data, as we obtained a relatively low RMSE. I implemented some feature transformation, so the variables could have been more significant. The NZV and Correlation analysis taken with the final model eleminated some probable dependent columns. After selecting the final model, I tested the model, by comparing the RMSE for both testing and training set. They had almost similar values, so I can say the model responded positively. 
+
+In overall, both models were successful to make predictions. The most influential variables in the first model were significant in the second one also. If I have to pick among them, I would say Model Engineering. Feature engineering tries to transform raw data into features that better represent the underlying problem to the predictive models, resulting in improved model accuracy on unseen data. 
+
+Before the first raw model, I managed to extract a better model with the stepwise selection, after that, the criterious feature selection, transformation and engineering processes always gave a better fit in the training set.
+
+In this project I picked 'imdb_rating' variable as a response variable. Similar analysis could be made using the other two continuous variables ('critics_score' and 'audience_score'). Since all these three variables were highly correlated, I expect a similar response even if you consider critics_score or audience_score as a dependent variable. 
+Moreover, I would like to mention that I tried to use support vector machines predicting the models, instead of linear models. I chose to work on linear models, because the model accuracy was almost the same in both cases. Linear Models are the most popular method on predicting multivariate covariates, but I wouldn't exlude any other option. Since the results were almost the same, I prefered to use linear regression models in this case. 
+
+There is a lot of research that can be done and the one explained in this project shows that we can accurately predict how people will rate the movies from its general characteristics.
+
+
+# Appendix
+
+## Plot 1 - Movies Trend per year 
+
+```{r , warning=FALSE, message=FALSE}
+# ggplot showing the trend of movies per year
+temp <- movies %>% select(title,thtr_rel_year) # select only movie title and year released
+temp <- temp %>% group_by(thtr_rel_year) %>% summarise(n=n()) # how many movies produced in a specific year
+temp <- na.omit(temp)
+ggplot(temp, aes(thtr_rel_year, n)) +  geom_point() +  geom_smooth()
+```
+
+## Plot 2 - Charts of data distribution 
+
+```{r , warning=FALSE, message=FALSE}
+# Create histograms of some of the key movie characteristic data.
+p1 <- ggplot(data=movies, aes(x=genre)) + 
+      geom_bar(aes(fill = ..count..)) + 
+      xlab("Movie Genre") +
+      theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0))
+p2 <- ggplot(data=movies, aes(x=title_type)) + 
+      geom_bar(aes(fill = ..count..)) + 
+      xlab("Movie Type") +
+      theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0))
+p3 <- ggplot(data=movies, aes(x=mpaa_rating)) + 
+      geom_bar(aes(fill = ..count..)) + 
+      xlab("Movie MPAA Rating") +
+      theme(axis.text.x=element_text(angle=90, hjust=1, vjust=0))
+p4 <- ggplot(data=movies, aes(x=runtime)) + 
+      geom_histogram( aes(fill = ..count..)) +
+      xlab("Movie Runtime")
+grid.arrange(p2, p3, p1, p4, nrow=2)
+```
+
+## Plot 3 - Correlation of all numeric variables. 
+
+```{r}
+# Data cleaning
+movies <- na.omit(movies)
+movies <- unique(movies)
+# Correlation between numeric values
+correlation <- cor(movies[sapply(movies, is.numeric)])
+corrplot(correlation, order = "hclust", method = "ellipse", addCoef.col = "black")   
+```
+
+## Plot 4 - Pairwise plots of movie rating scores
+
+```{r , warning=FALSE, message=FALSE}
+# Create pairwise plots of the movie rating scores to test for colinearity.
+responseCols <- c(13,16,18)
+movies1 <- movies[,responseCols]
+g = ggpairs(movies1, lower = list(continuous = "smooth"),method = "loess")
+g
+```
+
+
+## Plot 5 - Histograms of movie rating scores
+
+```{r , warning=FALSE, message=FALSE}
+# Create histograms of the movie rating scores.
+p1 <- ggplot(data=movies, aes(x=imdb_rating)) + 
+      geom_histogram(binwidth=0.5, fill="orange") +
+      xlab("IMDB Scores")
+p2 <- ggplot(data=movies, aes(x=critics_score)) + 
+      geom_histogram(binwidth=5, fill="orange") +
+      xlab("Critics Scores")
+p3 <- ggplot(data=movies, aes(x=audience_score)) + 
+      geom_histogram(binwidth=5, fill="orange") +
+      xlab("Audience Scores")
+grid.arrange(p1, p2, p3, nrow=1,
+             top="Distribution of Rating Scores")
+```
+
+## Plot 6 - Correlation of IMDB rating to other variables 
+
+```{r , warning=FALSE, message=FALSE}
+#remove critics_score and audience_score variables since we have studied them
+movies$critics_score <- NULL
+movies$audience_score <- NULL
+
+#select numeric columns
+movies %>% remove_missing()
+nums <- sapply(movies, is.numeric)
+#and here you have "the most important correlations" for variable cases excluding character variables
+Movie_Corr <- movies[,nums]  %>% correlate() %>% focus(imdb_rating) 
+ggplot(data=Movie_Corr, aes(x=rowname, y=abs(imdb_rating))) +
+  geom_bar(stat="identity", position="identity", fill = "red") +
+    scale_colour_solarized("red") +
+  ylab("Correlations") +
+  xlab("Correlation Variables") +
+  ggtitle("Greatest Correlations between IMDB and Other Variables") 
+
+```
+
+## Plot 7 - Number of users versus IMDB score 
+
+```{r , warning=FALSE, message=FALSE}
+ggplot(movies, aes(x = imdb_num_votes, y = imdb_rating)) + geom_point() + geom_smooth() +
+    geom_smooth(method= "lm", color = "red")
+```
+
+## Plot 8 - Runtime versus IMDB rating
+
+```{r , warning=FALSE, message=FALSE}
+ggplot(movies, aes(x = runtime, y = imdb_rating)) + geom_point() + geom_smooth() +
+    geom_smooth(method= "lm", color = "red")
+```
+
+## Plot 9 - IMDB rating versus MPAA rating 
+
+```{r , warning=FALSE, message=FALSE}
+# plot imdb rating based on mpaa_rating
+rating <- movies %>% select(imdb_rating,mpaa_rating)
+rating <- na.omit(rating)
+rate <- ggplot(rating, aes(x=mpaa_rating, y = imdb_rating, colour=mpaa_rating)) +
+    geom_boxplot() + coord_flip()
+rate
+
+```
+
+## Plot 10 - Movies age vesus IMDB rating 
+
+```{r , warning=FALSE, message=FALSE}
+
+# find movies age 
+current_year <- format(Sys.time(), " %Y")
+movies$movies_age <- as.numeric(current_year)- movies$thtr_rel_year
+# plot the relation 
+Score_Age <- ggplot(movies, aes(x = movies_age, y = imdb_rating)) + geom_point() +
+    geom_smooth() +geom_smooth(method= "lm", color = "red")
+Score_Age
+```
+
+## Plot 11 - Directors versus IMDB rating 
+
+```{r fig.width=15 ,warning=FALSE, message=FALSE,comment = NA, results = "asis", comment = NA, tidy = F}
+## relationship of average imdb rating for each director
+director <- movies %>% select(director,imdb_rating)
+director <- director %>% group_by(director) %>% summarise(avg_imdb_rating=mean(imdb_rating))
+director <- director %>% arrange(desc(avg_imdb_rating)) 
+ggplot(data=director, aes(x=director, y=avg_imdb_rating)) +
+  geom_bar(stat="identity", position="identity", fill = "lightblue") +
+    scale_colour_solarized("blue") +
+  ylab("IMDB avereage values") + 
+   ggtitle("Correlations between IMDB average values and Directors") +
+    theme(axis.title.x=element_blank(),
+        axis.text.x=element_blank(),
+        axis.ticks.x=element_blank())
+```
+
+## Plot 12 - Residuals and Diagnostics for Model 1 
+
+```{r , warning=FALSE, message=FALSE}
+# check residuals and diagnostics for the final model in AIC 
+par(mfrow = c(2, 2))
+plot(final.model)
+```
+
+## Plot 13 - Predicted versus truth in test set for Model 1 
+
+```{r , warning=FALSE, message=FALSE}
+set.seed(123)
+# check the imdb rating versus the testing prediction in Model 1
+# they are lineary related which makes the testing confidential
+pred <- predict(final.model, testing)
+p <-ggplot(data = testing, aes(x=imdb_rating, y = pred)) + geom_point() 
+p + geom_abline(slope=1, intercept=0, colour = "red")
+```
+
+## Plot 14 - Residuals and Diagnostics for Model 2
+
+```{r , warning=FALSE, message=FALSE}
+# check residuals and diagnostics for the final model in AIC 
+par(mfrow = c(2, 2))
+plot(finalModEng)
+```
+
+## Plot 15 - Predicted versus truth in test set for Model 2 
+
+```{r , warning=FALSE, message=FALSE}
+set.seed(123)
+# check the imdb rating versus the testing prediction in Model 2
+# they are lineary related which makes the testing confidential
+p <-ggplot(data = TestingPredictors, aes(x=imdb_rating, y = testingPredictions)) + geom_point() 
+p + geom_abline(slope=1, intercept=0, colour = "red")
+
+```
+
